@@ -1,0 +1,10 @@
+{
+  "compound_version": "v3",
+  "rpc_url": "https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY",
+  "market_address": "0xc3d688B66703497DAA19211EEdff47f25384cdc3",
+  "market_name": "USDC",
+  "webhook_url": "https://your-webhook-endpoint.com/notify",
+  "poll_interval_secs": 60,
+  "liquidity_threshold": "1000000000000",
+  "notification_enabled": true
+}
