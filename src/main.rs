@@ -92,9 +92,9 @@ enum Commands {
     },
     /// Check your balance
     Balance {
-        /// Wallet address to check
+        /// Wallet address to check (optional if using monitor_address.json)
         #[arg(short, long)]
-        address: String,
+        address: Option<String>,
     },
 }
 
@@ -111,6 +111,31 @@ struct Config {
     notification_enabled: Option<bool>,
     /// Optional private key for transactions (keep this secure!)
     private_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct MonitorAddress {
+    name: String,
+    address: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct MonitorAddressConfig {
+    addresses: Vec<MonitorAddress>,
+}
+
+impl MonitorAddressConfig {
+    fn load() -> Result<Self> {
+        let config_path = "monitor_address.json";
+
+        let config_content = fs::read_to_string(config_path)
+            .context("Failed to read monitor_address.json. Make sure it exists in the current directory.")?;
+
+        let config: MonitorAddressConfig = serde_json::from_str(&config_content)
+            .context("Failed to parse monitor_address.json. Check JSON syntax.")?;
+
+        Ok(config)
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -362,7 +387,7 @@ impl CompoundMonitor {
         Ok(())
     }
 
-    async fn check_balance(&self, address: &str) -> Result<()> {
+    async fn check_balance(&self, address: &str, name: Option<&str>) -> Result<()> {
         let address: H160 = address.parse().context("Invalid address")?;
         let market_address: H160 = self.config.market_address.parse()?;
 
@@ -388,6 +413,9 @@ impl CompoundMonitor {
         let compound_formatted = self.format_balance(compound_balance, divisor);
 
         info!("═══════════════════════════════════════════════════");
+        if let Some(name) = name {
+            info!("Name: {}", name);
+        }
         info!("Address: {}", address);
         info!("Token: {} (base token: {})", symbol, base_token_address);
         info!("Decimals: {}", decimals);
@@ -395,6 +423,31 @@ impl CompoundMonitor {
         info!("Wallet balance:   {} {} ({})", wallet_formatted, symbol, wallet_balance);
         info!("Compound balance: {} {} ({})", compound_formatted, symbol, compound_balance);
         info!("═══════════════════════════════════════════════════");
+
+        Ok(())
+    }
+
+    async fn check_balance_batch(&self) -> Result<()> {
+        let address_config = MonitorAddressConfig::load()?;
+
+        if address_config.addresses.is_empty() {
+            info!("No addresses found in monitor_address.json");
+            return Ok(());
+        }
+
+        info!("Checking balances for {} addresses...", address_config.addresses.len());
+        info!("");
+
+        for monitor_addr in &address_config.addresses {
+            match self.check_balance(&monitor_addr.address, Some(&monitor_addr.name)).await {
+                Ok(_) => info!(""),
+                Err(e) => {
+                    error!("Failed to check balance for {} ({}): {}",
+                        monitor_addr.name, monitor_addr.address, e);
+                    info!("");
+                }
+            }
+        }
 
         Ok(())
     }
@@ -546,7 +599,13 @@ async fn main() -> Result<()> {
             monitor.withdraw_v3(amount, &key).await?;
         }
         Some(Commands::Balance { address }) => {
-            monitor.check_balance(&address).await?;
+            if let Some(addr) = address {
+                // Check single address from command line
+                monitor.check_balance(&addr, None).await?;
+            } else {
+                // Check all addresses from monitor_address.json
+                monitor.check_balance_batch().await?;
+            }
         }
         Some(Commands::Monitor) | None => {
             // Default: run monitor

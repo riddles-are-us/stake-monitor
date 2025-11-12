@@ -5,6 +5,7 @@ Cargo.lock
 # Environment and secrets
 .env
 config.json
+monitor_address.json
 
 # IDE
 .vscode/

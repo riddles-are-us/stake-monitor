@@ -138,11 +138,54 @@ cargo run --release -- withdraw --amount 5000000 --private-key YOUR_PRIVATE_KEY
 
 ### 4. Check Balance
 
-Check your wallet and Compound balances:
+#### Single Address
+
+Check a specific wallet's balances:
 
 ```bash
 cargo run --release -- balance --address 0xYourWalletAddress
 ```
+
+#### Batch Check (Monitor Multiple Addresses)
+
+Monitor multiple addresses at once using `monitor_address.json`:
+
+1. Create `monitor_address.json` (copy from example):
+```bash
+cp monitor_address.example.json monitor_address.json
+```
+
+2. Edit `monitor_address.json` with your addresses:
+```json
+{
+  "addresses": [
+    {
+      "name": "Main Wallet",
+      "address": "0xYourAddress1"
+    },
+    {
+      "name": "Trading Wallet",
+      "address": "0xYourAddress2"
+    },
+    {
+      "name": "DeFi Wallet",
+      "address": "0xYourAddress3"
+    }
+  ]
+}
+```
+
+3. Run balance check without `--address` flag:
+```bash
+cargo run --release -- balance
+```
+
+This will check all addresses in the list and display:
+- Name (from your config)
+- Address
+- Token information
+- Wallet balance
+- Compound balance
 
 ### Important Notes
 
